@@ -163,13 +163,21 @@ func (e *AlluxioEngine) processUpdatingUFS(ufsToUpdate *utils.UFSToUpdate) (upda
 
 	if updateReady {
 		// need to reset ufsTotal to Calculating so that SyncMetadata will work
-		datasetToUpdate := dataset.DeepCopy()
-		datasetToUpdate.Status.UfsTotal = metadataSyncNotDoneMsg
-		if !reflect.DeepEqual(dataset.Status, datasetToUpdate.Status) {
-			err = e.Client.Status().Update(context.TODO(), datasetToUpdate)
+		err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			ds, err := utils.GetDataset(e.Client, e.name, e.namespace)
 			if err != nil {
-				e.Log.Error(err, "fail to update ufsTotal of dataset to Calculating")
+				return err
 			}
+			datasetToUpdate := ds.DeepCopy()
+			datasetToUpdate.Status.UfsTotal = metadataSyncNotDoneMsg
+			if !reflect.DeepEqual(dataset.Status, datasetToUpdate.Status) {
+				err = e.Client.Status().Update(context.TODO(), datasetToUpdate)
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			e.Log.Error(err, "fail to update ufsTotal of dataset to Calculating")
 		}
 
 		err = e.SyncMetadata()
