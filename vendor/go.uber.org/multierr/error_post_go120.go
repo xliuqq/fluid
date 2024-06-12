@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023 Uber Technologies, Inc.
+// Copyright (c) 2020 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,4 +26,23 @@ package multierr
 // Unwrap returns a list of errors wrapped by this multierr.
 func (merr *multiError) Unwrap() []error {
 	return merr.Errors()
+}
+
+type multipleErrors interface {
+	Unwrap() []error
+}
+
+func extractErrors(err error) []error {
+	if err == nil {
+		return nil
+	}
+
+	// check if the given err is an Unwrapable error that
+	// implements multipleErrors interface.
+	eg, ok := err.(multipleErrors)
+	if !ok {
+		return []error{err}
+	}
+
+	return append(([]error)(nil), eg.Unwrap()...)
 }
