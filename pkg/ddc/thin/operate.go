@@ -29,7 +29,7 @@ func (t *ThinEngine) GetDataOperationValueFile(ctx cruntime.ReconcileRequestCont
 	object := operation.GetOperationObject()
 
 	switch operationType {
-	case datav1alpha1.DataProcessType:
+	case datav1alpha1.Process:
 		valueFileName, err = t.generateDataProcessValueFile(ctx, object)
 		return valueFileName, err
 	default:

@@ -53,7 +53,7 @@ func (mockDataloadOperationReconciler) GetChartsDirectory() string {
 
 // GetOperationType implements OperationInterface.
 func (m mockDataloadOperationReconciler) GetOperationType() datav1alpha1.OperationType {
-	return datav1alpha1.DataLoadType
+	return datav1alpha1.Load
 }
 
 // GetReleaseNameSpacedName implements OperationInterface.
@@ -68,7 +68,7 @@ func (mockDataloadOperationReconciler) GetStatusHandler() StatusHandler {
 
 // GetTTL implements OperationInterface.
 func (m mockDataloadOperationReconciler) GetTTL() (ttl *int32, err error) {
-	if m.expectType != datav1alpha1.DataLoadType {
+	if m.expectType != datav1alpha1.Load {
 		err = fmt.Errorf("the dataoperation type is %s, not DataloadType", m.expectType)
 	}
 	return m.TTLSecondsAfterFinished, err

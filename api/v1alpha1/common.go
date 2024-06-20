@@ -246,13 +246,13 @@ type Condition struct {
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 }
 
-type OperationType string
+type Operation string
 
 const (
-	DataLoadType    OperationType = "DataLoad"
-	DataBackupType  OperationType = "DataBackup"
-	DataMigrateType OperationType = "DataMigrate"
-	DataProcessType OperationType = "DataProcess"
+	Load    Operation = "DataLoad"
+	Backup  Operation = "DataBackup"
+	Migrate Operation = "DataMigrate"
+	Process Operation = "DataProcess"
 )
 
 // AffinityPolicy the strategy for the affinity between Data Operation Pods.

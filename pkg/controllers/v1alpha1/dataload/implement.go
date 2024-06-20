@@ -72,7 +72,7 @@ func (r *dataLoadOperation) GetChartsDirectory() string {
 }
 
 func (r *dataLoadOperation) GetOperationType() datav1alpha1.OperationType {
-	return datav1alpha1.DataLoadType
+	return datav1alpha1.Load
 }
 
 func (r *dataLoadOperation) UpdateOperationApiStatus(opStatus *datav1alpha1.OperationStatus) error {

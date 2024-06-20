@@ -29,13 +29,13 @@ func (j *JuiceFSEngine) GetDataOperationValueFile(ctx cruntime.ReconcileRequestC
 	object := operation.GetOperationObject()
 
 	switch operationType {
-	case datav1alpha1.DataMigrateType:
+	case datav1alpha1.Migrate:
 		valueFileName, err = j.generateDataMigrateValueFile(ctx, object)
 		return valueFileName, err
-	case datav1alpha1.DataLoadType:
+	case datav1alpha1.Load:
 		valueFileName, err = j.generateDataLoadValueFile(ctx, object)
 		return valueFileName, err
-	case datav1alpha1.DataProcessType:
+	case datav1alpha1.Process:
 		valueFileName, err = j.generateDataProcessValueFile(ctx, object)
 		return valueFileName, err
 	default:

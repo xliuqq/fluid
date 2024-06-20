@@ -28,12 +28,12 @@ func (e *GooseFSEngine) GetDataOperationValueFile(ctx cruntime.ReconcileRequestC
 	operateType := operation.GetOperationType()
 	object := operation.GetOperationObject()
 
-	if operateType == datav1alpha1.DataBackupType {
+	if operateType == datav1alpha1.Backup {
 		valueFileName, err = e.generateDataBackupValueFile(ctx, object)
 		return valueFileName, err
 	}
 
-	if operateType == datav1alpha1.DataLoadType {
+	if operateType == datav1alpha1.Load {
 		valueFileName, err = e.generateDataLoadValueFile(ctx, object)
 		return valueFileName, err
 	}

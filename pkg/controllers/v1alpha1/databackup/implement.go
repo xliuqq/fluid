@@ -109,7 +109,7 @@ func (r *dataBackupOperation) RemoveTargetDatasetStatusInProgress(dataset *datav
 }
 
 func (r *dataBackupOperation) GetOperationType() datav1alpha1.OperationType {
-	return datav1alpha1.DataBackupType
+	return datav1alpha1.Backup
 }
 
 func (r *dataBackupOperation) GetTargetDataset() (*datav1alpha1.Dataset, error) {

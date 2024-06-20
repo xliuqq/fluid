@@ -50,7 +50,7 @@ func InstallDataOperationHelmIfNotExist(ctx cruntime.ReconcileRequestContext, op
 		}
 
 		var chartName string
-		if operation.GetOperationType() == datav1alpha1.DataProcessType {
+		if operation.GetOperationType() == datav1alpha1.Process {
 			// for DataProcess, all engine share the same chart
 			chartName = operation.GetChartsDirectory() + "/" + "common"
 		} else {

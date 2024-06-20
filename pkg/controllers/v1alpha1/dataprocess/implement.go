@@ -74,7 +74,7 @@ func (r *dataProcessOperation) GetChartsDirectory() string {
 
 // GetOperationType get the data operation type
 func (r *dataProcessOperation) GetOperationType() datav1alpha1.OperationType {
-	return datav1alpha1.DataProcessType
+	return datav1alpha1.Process
 }
 
 // UpdateOperationApiStatus update the data operation status, object is the data operation crd instance.

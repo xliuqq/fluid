@@ -28,7 +28,7 @@ func (e *JindoCacheEngine) GetDataOperationValueFile(ctx cruntime.ReconcileReque
 	operationType := operation.GetOperationType()
 	object := operation.GetOperationObject()
 
-	if operationType == datav1alpha1.DataLoadType {
+	if operationType == datav1alpha1.Load {
 		valueFileName, err = e.generateDataLoadValueFile(ctx, object)
 		return valueFileName, err
 	}

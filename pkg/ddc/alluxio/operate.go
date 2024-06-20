@@ -29,13 +29,13 @@ func (e *AlluxioEngine) GetDataOperationValueFile(ctx cruntime.ReconcileRequestC
 	object := operation.GetOperationObject()
 
 	switch operationType {
-	case datav1alpha1.DataBackupType:
+	case datav1alpha1.Backup:
 		valueFileName, err = e.generateDataBackupValueFile(ctx, object)
 		return valueFileName, err
-	case datav1alpha1.DataLoadType:
+	case datav1alpha1.Load:
 		valueFileName, err = e.generateDataLoadValueFile(ctx, object)
 		return valueFileName, err
-	case datav1alpha1.DataProcessType:
+	case datav1alpha1.Process:
 		valueFileName, err = e.generateDataProcessValueFile(ctx, object)
 		return valueFileName, err
 	default:
