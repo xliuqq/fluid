@@ -18,6 +18,7 @@ package app
 
 import (
 	"github.com/fluid-cloudnative/fluid/pkg/common"
+	"github.com/fluid-cloudnative/fluid/pkg/controllers/v1alpha1/fluidapp/kueue"
 
 	"github.com/fluid-cloudnative/fluid/pkg/controllers/v1alpha1/fluidapp/dataflowaffinity"
 	"github.com/fluid-cloudnative/fluid/pkg/dataflow"
@@ -118,6 +119,16 @@ func handle() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("appctrl"),
 		mgr.GetEventRecorderFor("FluidApp"),
+	)).SetupWithManager(mgr, controllerOptions); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FluidApp")
+		os.Exit(1)
+	}
+
+	// should use MaxConcurrentReconciles 3 or Default 1?
+	if err = (kueue.NewController(
+		mgr.GetClient(),
+		ctrl.Log.WithName("kueuectrl"),
+		mgr.GetEventRecorderFor("Kueue"),
 	)).SetupWithManager(mgr, controllerOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FluidApp")
 		os.Exit(1)

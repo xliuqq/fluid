@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"time"
 
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
@@ -45,6 +46,44 @@ func ListDataOperationJobByCronjob(c client.Client, cronjobNamespacedName types.
 		return nil, err
 	}
 	return jobList.Items, nil
+}
+
+func GetDataOperationStatus(c client.Client, opType string, namespacedName types.NamespacedName) (*datav1alpha1.OperationStatus, error) {
+	if opType == string(dataoperation.DataLoadType) {
+		dataLoad := &datav1alpha1.DataLoad{}
+		err := c.Get(context.TODO(), namespacedName, dataLoad)
+		if err != nil {
+			return nil, err
+		}
+		return &dataLoad.Status, nil
+	}
+	if opType == string(dataoperation.DataBackupType) {
+		dataBackup := &datav1alpha1.DataBackup{}
+		err := c.Get(context.TODO(), namespacedName, dataBackup)
+		if err != nil {
+			return nil, err
+		}
+		return &dataBackup.Status, nil
+	}
+	if opType == string(dataoperation.DataMigrateType) {
+		dataMigrate := &datav1alpha1.DataMigrate{}
+		err := c.Get(context.TODO(), namespacedName, dataMigrate)
+		if err != nil {
+			return nil, err
+		}
+		return &dataMigrate.Status, nil
+	}
+	if opType == string(dataoperation.DataProcessType) {
+		dataProcess := &datav1alpha1.DataProcess{}
+		err := c.Get(context.TODO(), namespacedName, dataProcess)
+		if err != nil {
+			return nil, err
+		}
+		return &dataProcess.Status, nil
+	}
+
+	return nil, errors.NewBadRequest(fmt.Sprintf("type %s is not valid, only support '%s', '%s', '%s', '%s'",
+		opType, dataoperation.DataBackupType, dataoperation.DataLoadType, dataoperation.DataProcessType, dataoperation.DataMigrateType))
 }
 
 func GetOperationStatus(obj client.Object) (*datav1alpha1.OperationStatus, error) {
