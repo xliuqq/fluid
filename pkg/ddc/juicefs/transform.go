@@ -261,10 +261,16 @@ func (j *JuiceFSEngine) transformTolerations(dataset *datav1alpha1.Dataset, valu
 func (j *JuiceFSEngine) transformPodMetadata(runtime *datav1alpha1.JuiceFSRuntime, value *JuiceFS) (err error) {
 	commonLabels := utils.UnionMapsWithOverride(map[string]string{}, runtime.Spec.PodMetadata.Labels)
 	value.Worker.Labels = utils.UnionMapsWithOverride(commonLabels, runtime.Spec.Worker.PodMetadata.Labels)
+	// in-place update for worker pods used in webhook mutating.
+	value.Worker.Labels[common.RuntimePodType] = common.RuntimeWorkerPod
+
 	value.Fuse.Labels = utils.UnionMapsWithOverride(commonLabels, runtime.Spec.Fuse.PodMetadata.Labels)
 
 	commonAnnotations := utils.UnionMapsWithOverride(map[string]string{}, runtime.Spec.PodMetadata.Annotations)
 	value.Worker.Annotations = utils.UnionMapsWithOverride(commonAnnotations, runtime.Spec.Worker.PodMetadata.Annotations)
+	// the runtime name used in webhook mutating to mutate in-place updated worker pods.
+	value.Worker.Annotations[common.AnnotationRuntimeName] = runtime.Name
+
 	value.Fuse.Annotations = utils.UnionMapsWithOverride(commonAnnotations, runtime.Spec.Fuse.PodMetadata.Annotations)
 
 	return nil
