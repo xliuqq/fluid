@@ -184,6 +184,7 @@ func TestJuiceFSEngine_transformPodMetadata(t *testing.T) {
 						Labels:      map[string]string{"common-key": "common-value"},
 						Annotations: map[string]string{"common-annotation": "val"},
 					},
+					UpdateStrategy: datav1alpha1.InPlaceIfPossible,
 				},
 			},
 			Value: &JuiceFS{},
@@ -206,6 +207,7 @@ func TestJuiceFSEngine_transformPodMetadata(t *testing.T) {
 						Labels:      map[string]string{"common-key": "common-value"},
 						Annotations: map[string]string{"common-annotation": "val"},
 					},
+					UpdateStrategy: datav1alpha1.InPlaceIfPossible,
 					Worker: datav1alpha1.JuiceFSCompTemplateSpec{
 						PodMetadata: datav1alpha1.PodMetadata{
 							Labels:      map[string]string{"common-key": "worker-value", common.RuntimePodType: common.RuntimeWorkerPod},
