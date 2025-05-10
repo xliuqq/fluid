@@ -138,7 +138,7 @@ func handle() {
 				// restrict the number of configmap to be cached.
 				&v1.ConfigMap{}: {
 					Label: labels.SelectorFromSet(labels.Set{
-						common.LabelAnnotationManagedBy: common.Fluid,
+						common.LabelConfigMapType: common.RuntimeWorkerStateConfigMapTypeName,
 					}),
 				},
 			},
