@@ -56,7 +56,7 @@ type Conventions interface {
 
 	GetExclusiveLabelValue() string
 
-	GetWorkerRuntimeConfigMapName() string
+	GetWorkerPodStateName() string
 }
 
 // Runtime Information interface defines the interfaces that should be implemented

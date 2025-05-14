@@ -19,8 +19,9 @@ package lifecycle
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v3"
+	"github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -109,31 +110,23 @@ func SyncScheduleInfoToCacheNodes(runtimeInfo base.RuntimeInfoInterface, client 
 	}
 
 	// previous worker pod index to node name.
-	cm, err := kubeclient.GetConfigmapByName(client, runtimeInfo.GetWorkerRuntimeConfigMapName(), runtimeInfo.GetNamespace())
+	persistentPodState, err := kubeclient.GetPersistentPodState(client, runtimeInfo.GetWorkerPodStateName(), runtimeInfo.GetNamespace())
 	if err != nil {
 		return err
 	}
-	if cm == nil {
-		// runtime not support
-		return
-	}
-	updatedConfigMap := cm.DeepCopy()
-	if updatedConfigMap.Data == nil {
-		updatedConfigMap.Data = make(map[string]string)
-	}
-
-	var workerPodRuntimeInfo = &common.RuntimeWorkerInfo{}
-	data, ok := updatedConfigMap.Data[common.WorkerStatesKey]
-	if ok {
-		if err = yaml.Unmarshal([]byte(data), workerPodRuntimeInfo); err != nil {
-			return err
-		}
-	}
-	// update configmap interval >= 1s
-	if workerPodRuntimeInfo.LastUpdateTime != nil && time.Since(workerPodRuntimeInfo.LastUpdateTime.Time) < time.Second {
+	// runtime not support
+	if persistentPodState == nil {
+		rootLog.V(1).Info("runtime not support in-place update, skip", "name", runtimeInfo.GetName(), "namespace", runtimeInfo.GetNamespace())
 		return nil
 	}
-	workerPodRuntimeInfo.LastUpdateTime = &metav1.Time{Time: time.Now()}
+
+	updatedPodState := persistentPodState.DeepCopy()
+
+	// update configmap interval >= 1s, wait for next reconcile.
+	if updatedPodState.Status.LastUpdateTime != nil && time.Since(updatedPodState.Status.LastUpdateTime.Time) < time.Second {
+		rootLog.V(1).Info("update persistentPodState too fast, will wait for next.", "name", runtimeInfo.GetName(), "namespace", runtimeInfo.GetNamespace())
+		return nil
+	}
 
 	// insert new podState via current worker statefulset pods
 	for _, pod := range workerPods {
@@ -142,16 +135,16 @@ func SyncScheduleInfoToCacheNodes(runtimeInfo base.RuntimeInfoInterface, client 
 		if !podutil.IsPodReady(&pod) || len(podNodeName) == 0 {
 			continue
 		}
-		podState, ok := workerPodRuntimeInfo.PodStates[pod.Name]
+		podState, ok := updatedPodState.Status.PodStates[pod.Name]
 		// 2. index already recorded
 		if ok && podState.NodeName == podNodeName {
 			continue
 		}
 		// 3. insert new index or replace
-		if workerPodRuntimeInfo.PodStates == nil {
-			workerPodRuntimeInfo.PodStates = make(map[string]common.PodState)
+		if updatedPodState.Status.PodStates == nil {
+			updatedPodState.Status.PodStates = make(map[string]v1alpha1.PodState)
 		}
-		workerPodRuntimeInfo.PodStates[pod.Name] = common.PodState{
+		updatedPodState.Status.PodStates[pod.Name] = v1alpha1.PodState{
 			NodeName: podNodeName,
 		}
 	}
@@ -159,7 +152,7 @@ func SyncScheduleInfoToCacheNodes(runtimeInfo base.RuntimeInfoInterface, client 
 	replicas := int(*workers.Spec.Replicas)
 
 	// delete old podState when index >= replicas, scale down statefulSet scenario
-	for podName := range workerPodRuntimeInfo.PodStates {
+	for podName := range updatedPodState.Status.PodStates {
 		index, err := parseStsPodIndex(podName)
 		if err != nil {
 			rootLog.Info(fmt.Sprintf("failed to parse statefulset pod name: %v, ignore it and continue", err), "name", podName)
@@ -168,21 +161,18 @@ func SyncScheduleInfoToCacheNodes(runtimeInfo base.RuntimeInfoInterface, client 
 		// index starts from 0 to replicas - 1
 		if index >= replicas {
 			rootLog.Info(fmt.Sprintf("remove pod state for index: %d", index))
-			delete(workerPodRuntimeInfo.PodStates, podName)
+			delete(updatedPodState.Status.PodStates, podName)
 		}
 	}
 
-	// Update ConfigMap
-	newData, err := yaml.Marshal(workerPodRuntimeInfo)
-	if err != nil {
-		return
+	if !reflect.DeepEqual(persistentPodState.Status, updatedPodState.Status) {
+		updatedPodState.Status.LastUpdateTime = &metav1.Time{Time: time.Now()}
+		rootLog.Info("update podpersistentstate status", "status", updatedPodState.Status)
+		if err = kubeclient.UpdatePersistentPodStateStatus(client, updatedPodState); err != nil {
+			return err
+		}
 	}
-
-	updatedConfigMap.Data[common.WorkerStatesKey] = string(newData)
-	if err = kubeclient.UpdateConfigMap(client, updatedConfigMap); err != nil {
-		return
-	}
-	return
+	return nil
 }
 
 func parseStsPodIndex(podName string) (int, error) {

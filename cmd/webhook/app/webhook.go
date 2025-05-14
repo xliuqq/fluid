@@ -18,8 +18,6 @@ package app
 
 import (
 	"flag"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -134,12 +132,6 @@ func handle() {
 			ByObject: map[client.Object]cache.ByObject{
 				&admissionregistrationv1.MutatingWebhookConfiguration{}: {
 					Field: fields.SelectorFromSet(fields.Set{"metadata.name": common.WebhookName}),
-				},
-				// restrict the number of configmap to be cached.
-				&v1.ConfigMap{}: {
-					Label: labels.SelectorFromSet(labels.Set{
-						common.LabelConfigMapType: common.RuntimeWorkerStateConfigMapTypeName,
-					}),
 				},
 			},
 		},

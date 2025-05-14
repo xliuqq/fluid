@@ -219,8 +219,3 @@ const (
 const (
 	SkipPrecheckAnnotationKey = "sidecar.fluid.io/skip-precheck"
 )
-
-const (
-	// WorkerStatesKey is the key of the pod states in the runtime related config map.
-	WorkerStatesKey = "workerStates"
-)

@@ -127,11 +127,6 @@ const (
 	RuntimePodType   = "fluid.io/runtime-pod-type"
 	RuntimeWorkerPod = "worker"
 
-	// LabelConfigMapType fluid.io/configmap-type is the label key for runtime configmap type
-	LabelConfigMapType = LabelAnnotationPrefix + "configmap-type"
-	// RuntimeWorkerStateConfigMapTypeName is the label value of the configmap type for runtime worker state
-	RuntimeWorkerStateConfigMapTypeName = "worker-state"
-
 	// AnnotationRuntimeName is the annotation key for the runtime name
 	AnnotationRuntimeName = LabelAnnotationPrefix + "runtime-name"
 )

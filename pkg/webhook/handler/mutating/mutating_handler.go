@@ -22,7 +22,6 @@ import (
 	"fmt"
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/ddc/base"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"net/http"
 	"time"
 
@@ -157,27 +156,18 @@ func (a *FluidMutatingHandler) MutateRuntimeWorkerPod(pod *corev1.Pod) (err erro
 		return nil
 	}
 
-	configmap, err := kubeclient.GetConfigmapByName(a.Client, runtimeInfo.GetWorkerRuntimeConfigMapName(), runtimeNamespace)
+	persistentPodState, err := kubeclient.GetPersistentPodState(a.Client, runtimeInfo.GetWorkerPodStateName(), runtimeNamespace)
 	if err != nil {
 		return err
 	}
 	// config map not created, the statefulset is being created now.
-	if configmap == nil {
-		setupLog.Info("no configmap found in runtime, skip mutating the pod", "Pod", pod.Name, "Namespace", pod.Namespace)
+	if persistentPodState == nil {
+		setupLog.Info("no PersistentPodState found in runtime, skip mutating the pod", "Pod", pod.Name, "Namespace", pod.Namespace)
 		return nil
 	}
 
-	data, ok := configmap.Data[common.WorkerStatesKey]
 	// states are not sync yet.
-	if !ok {
-		return nil
-	}
-	podStates := &common.RuntimeWorkerInfo{}
-	err = yaml.Unmarshal([]byte(data), podStates)
-	if err != nil {
-		return err
-	}
-	podState, ok := podStates.PodStates[pod.Name]
+	podState, ok := persistentPodState.Status.PodStates[pod.Name]
 	if !ok {
 		return
 	}

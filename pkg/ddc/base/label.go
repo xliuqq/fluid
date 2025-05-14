@@ -63,6 +63,6 @@ func (info *RuntimeInfo) GetExclusiveLabelValue() string {
 	return utils.GetNamespacedNameValueWithPrefix("", info.namespace, info.name, info.ownerDatasetUID)
 }
 
-func (info *RuntimeInfo) GetWorkerRuntimeConfigMapName() string {
+func (info *RuntimeInfo) GetWorkerPodStateName() string {
 	return info.name + "-pod-state"
 }
