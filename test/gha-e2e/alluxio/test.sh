@@ -78,7 +78,8 @@ function wait_job_completed() {
 function dump_env_and_clean_up() {
     bash tools/diagnose-fluid-alluxio.sh collect --name $dataset_name --namespace default --collect-path ./e2e-tmp/testcase-alluxio.tgz
     syslog "Cleaning up resources for testcase $testname"
-    kubectl delete -f test/gha-e2e/alluxio/
+    kubectl delete -f test/gha-e2e/alluxio/job.yaml
+    kubectl delete -f test/gha-e2e/alluxio/dataset.yaml
 }
 
 function main() {
