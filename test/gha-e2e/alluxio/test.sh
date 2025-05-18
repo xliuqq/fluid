@@ -79,7 +79,8 @@ function dump_env_and_clean_up() {
     bash tools/diagnose-fluid-alluxio.sh collect --name $dataset_name --namespace default --collect-path ./e2e-tmp/testcase-alluxio.tgz
     syslog "Cleaning up resources for testcase $testname"
     kubectl delete -f test/gha-e2e/alluxio/job.yaml
-    kubectl delete -f test/gha-e2e/alluxio/dataset.yaml
+    kubectl delete -f test/gha-e2e/alluxio/dataset.yaml &
+    kubectl logs -f $(kubectl get pod -oname -n fluid-system | grep alluxioruntime-controller) -n fluid-system
 }
 
 function main() {
