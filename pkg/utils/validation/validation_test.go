@@ -22,6 +22,14 @@ import (
 	"testing"
 )
 
+func FuzzIsSafePath(f *testing.F) {
+	// f.Add()
+	f.Fuzz(func(t *testing.T, input string) {
+		// ignore the error, expect no panic
+		_ = IsValidMountRoot(input)
+	})
+}
+
 func TestIsSafePathWithSafePath(t *testing.T) {
 
 	type testCase struct {
