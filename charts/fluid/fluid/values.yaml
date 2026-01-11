@@ -88,6 +88,23 @@ runtime:
   # e.g. syncScheduleInfoNodeExcludeSelector: "mynode=dev,type=virtual-kubelet"
   syncScheduleInfoNodeExcludeSelector: ""
   mountRoot: /runtime-mnt
+  cache:
+    enabled: false
+    replicas: 1
+    tolerations:
+      - operator: Exists
+    resources:
+      requests:
+        cpu: 500m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+    controller:
+      imagePrefix: *defaultImagePrefix
+      imageName: cacheruntime-controller
+      imageTag: *defaultVersion
+
   alluxio:
     replicas: 1
     env: []
