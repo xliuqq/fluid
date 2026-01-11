@@ -52,8 +52,8 @@ func (e *CacheEngine) destroyComponents() error {
 	var (
 		nodeList           = &corev1.NodeList{}
 		labelExclusiveName = utils.GetExclusiveKey()
-		labelName          = utils.GetRuntimeLabelName(false, e.runtimeType, e.namespace, e.name, "")
-		labelCommonName    = utils.GetCommonLabelName(false, e.namespace, e.name, "")
+		labelName          = utils.GetRuntimeLabelName(e.runtimeType, e.namespace, e.name, "")
+		labelCommonName    = utils.GetCommonLabelName(e.namespace, e.name, "")
 		labelFuseName      = utils.GetFuseLabelName(e.namespace, e.name, "")
 	)
 

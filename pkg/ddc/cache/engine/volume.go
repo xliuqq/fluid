@@ -93,8 +93,8 @@ func (e *CacheEngine) createFusePersistentVolume() error {
 				Name:      pvName,
 				Namespace: e.namespace,
 				Labels: map[string]string{
-					utils.GetCommonLabelName(false, e.namespace, e.name, ""): "true",
-					common.LabelAnnotationDatasetId:                          utils.GetDatasetId(e.namespace, e.name, ""),
+					utils.GetCommonLabelName(e.namespace, e.name, ""): "true",
+					common.LabelAnnotationDatasetId:                   utils.GetDatasetId(e.namespace, e.name, ""),
 				},
 				Annotations: common.GetExpectedFluidAnnotations(),
 			},
@@ -206,8 +206,8 @@ func (e *CacheEngine) createFusePersistentVolumeClaim() error {
 				Name:      e.name,
 				Namespace: e.namespace,
 				Labels: map[string]string{
-					utils.GetCommonLabelName(false, e.namespace, e.name, ""): "true",
-					common.LabelAnnotationDatasetId:                          utils.GetDatasetId(e.namespace, e.name, ""),
+					utils.GetCommonLabelName(e.namespace, e.name, ""): "true",
+					common.LabelAnnotationDatasetId:                   utils.GetDatasetId(e.namespace, e.name, ""),
 				},
 				Annotations: common.GetExpectedFluidAnnotations(),
 			},

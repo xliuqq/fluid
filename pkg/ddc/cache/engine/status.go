@@ -46,17 +46,13 @@ func (e *CacheEngine) CheckAndUpdateRuntimeStatus(value *common.CacheRuntimeValu
 			if err != nil {
 				return err
 			}
-			if runtime.Replicas() == 0 {
+			if workerStatus.DesiredReplicas == workerStatus.ReadyReplicas {
 				workerStatus.Phase = data.RuntimePhaseReady
 				workerReady = true
-			} else if workerStatus.ReadyReplicas > 0 {
-				if runtime.Replicas() == workerStatus.ReadyReplicas {
-					workerStatus.Phase = data.RuntimePhaseReady
-					workerReady = true
-				} else if workerStatus.ReadyReplicas >= 1 {
-					workerStatus.Phase = data.RuntimePhasePartialReady
-					workerReady = true
-				}
+			} else if workerStatus.ReadyReplicas >= 1 {
+				workerStatus.Phase = data.RuntimePhasePartialReady
+				// partial ready masters are considered as ready!
+				workerReady = true
 			} else {
 				workerStatus.Phase = data.RuntimePhaseNotReady
 			}

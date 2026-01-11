@@ -19,7 +19,6 @@ package engine
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -180,15 +179,15 @@ func (e *CacheEngine) transformRuntimeConfigVolume(value *common.CacheRuntimeCom
 		}}
 }
 
-func (t *CacheEngine) transformTieredStore(Levels []datav1alpha1.CacheRuntimeTieredStoreLevel) (*common.CacheRuntimeComponentTieredStoreConfig, error) {
+func (t *CacheEngine) transformTieredStore(Levels []datav1alpha1.RuntimeTieredStoreLevel) (*common.CacheRuntimeComponentTieredStoreConfig, error) {
 	baseIndex := 0
 	tieredStoreVolumes := make([]corev1.Volume, 0)
 	tieredStoreVolumeMounts := make([]corev1.VolumeMount, 0)
 	cacheOpts := make([]common.TieredStoreOption, 0)
 
 	for _, level := range Levels {
-		cacheDirs := strings.Split(level.Path, ",") // mount path
-		cacheQuotas := strings.Split(level.Quota, ",")
+		cacheDirs := level.Path // mount path
+		cacheQuotas := level.Quota
 
 		if len(cacheQuotas) != len(cacheDirs) {
 			return nil, fmt.Errorf("differene content length of quotas and paths")
@@ -199,7 +198,7 @@ func (t *CacheEngine) transformTieredStore(Levels []datav1alpha1.CacheRuntimeTie
 			cacheQuota := cacheQuotas[i]
 			memQuantityRequirement := resource.MustParse("0Gi")
 			if level.Medium.ProcessMemory != nil {
-				memQuantityRequirement = resource.MustParse(cacheQuota)
+				memQuantityRequirement = cacheQuota
 			} else if volume := level.Medium.Volume; volume != nil {
 				volumeName := fmt.Sprintf("fluid-cache-dir-%v", baseIndex)
 				v := corev1.Volume{
@@ -209,7 +208,7 @@ func (t *CacheEngine) transformTieredStore(Levels []datav1alpha1.CacheRuntimeTie
 				if volume.HostPath != nil {
 					v.VolumeSource.HostPath = volume.HostPath
 				} else if volume.EmptyDir != nil {
-					memQuantityRequirement = resource.MustParse(level.Quota)
+					memQuantityRequirement = cacheQuota
 					if volume.EmptyDir.Medium == corev1.StorageMediumMemory {
 						volume.EmptyDir.SizeLimit = &memQuantityRequirement
 					}
@@ -226,7 +225,7 @@ func (t *CacheEngine) transformTieredStore(Levels []datav1alpha1.CacheRuntimeTie
 
 			cacheOpt := common.TieredStoreOption{
 				CacheDir:               cacheDir,
-				CacheCapacity:          cacheQuota,
+				CacheCapacity:          cacheQuota.String(),
 				Low:                    level.Low,
 				High:                   level.High,
 				MemQuantityRequirement: &memQuantityRequirement,
