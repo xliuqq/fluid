@@ -67,7 +67,7 @@ type RuntimeComponentDefinition struct {
 }
 
 type ExecutionEntries struct {
-	// MountUFS defines the operations for mounting UFS
+	// MountUFS defines the operations for mounting UFS, the command output should be a json string of struct CacheRuntimeMountUfsOutput .
 	MountUFS *ExecutionCommonEntry `json:"mountUFS,omitempty"`
 
 	// ReportSummary it defines the operation how to get cache status like capacity, hit ratio etc.

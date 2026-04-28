@@ -18,30 +18,36 @@ package engine
 
 import (
 	"context"
+	"os"
+	"reflect"
+	"time"
+
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	cruntime "github.com/fluid-cloudnative/fluid/pkg/runtime"
 	"github.com/fluid-cloudnative/fluid/pkg/utils/kubeclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"reflect"
-	"time"
 )
 
 func (e *CacheEngine) Sync(ctx cruntime.ReconcileRequestContext) (err error) {
-	// sync the runtime value configmap
 	runtime, err := e.getRuntime()
 	if err != nil {
 		return err
 	}
 
+	// sync the runtime value config map
 	err = e.syncRuntimeValueConfigMap(runtime)
 	if err != nil {
 		return err
 	}
 
-	// TODO: implement other logic
+	// handle ufs change - support dynamic mount updates
+	err := e.UpdateOnUFSChange()
+	if err != nil {
+		e.Log.Error(err, "Failed to update UFS")
+		return err
+	}
 
-	// handle ufs change
+	// TODO: implement other logic
 
 	// sync runtime status
 
