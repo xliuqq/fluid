@@ -41,7 +41,7 @@ func (e *CacheEngine) Sync(ctx cruntime.ReconcileRequestContext) (err error) {
 	}
 
 	// handle ufs change - support dynamic mount updates
-	err := e.UpdateOnUFSChange()
+	err = e.UpdateOnUFSChange()
 	if err != nil {
 		e.Log.Error(err, "Failed to update UFS")
 		return err
