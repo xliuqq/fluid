@@ -32,6 +32,9 @@ import (
 func (e *CacheEngine) BindToDataset() (err error) {
 	e.Log.V(1).Info("Start to BindToDataset")
 
+	// update runtime status mount time
+	e.updateMountTime()
+
 	return e.UpdateDatasetStatus(datav1alpha1.BoundDatasetPhase)
 }
 

@@ -19,13 +19,14 @@ package engine
 import (
 	"context"
 	"errors"
+	"reflect"
+
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	"github.com/fluid-cloudnative/fluid/pkg/ddc/cache/component"
 	"github.com/fluid-cloudnative/fluid/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
-	"reflect"
 )
 
 func (e *CacheEngine) SetupMasterComponent(masterValue *common.CacheRuntimeComponentValue) (bool, error) {
@@ -106,14 +107,14 @@ func (e *CacheEngine) setupMasterInternal(masterValue *common.CacheRuntimeCompon
 	return nil
 }
 
-func (e *CacheEngine) getMasterPodInfo(value *common.CacheRuntimeValue) (podName string, containerName string, err error) {
+func (e *CacheEngine) getMasterPodInfo(runtimeClass *datav1alpha1.CacheRuntimeClass) (podName string, containerName string, err error) {
 	// pod name is auto generated
 	podName = GetComponentName(e.name, common.ComponentTypeMaster) + "-0"
 	// container name, use the first container name
-	if value.Master == nil || len(value.Master.PodTemplateSpec.Spec.Containers) == 0 {
+	if runtimeClass.Topology == nil || runtimeClass.Topology.Master == nil ||
+		len(runtimeClass.Topology.Master.Template.Spec.Containers) == 0 {
 		return "", "", errors.New("no container in master pod template")
 	}
-	containerName = value.Master.PodTemplateSpec.Spec.Containers[0].Name
-
+	containerName = runtimeClass.Topology.Master.Template.Spec.Containers[0].Name
 	return
 }

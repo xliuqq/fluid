@@ -17,11 +17,12 @@
 package engine
 
 import (
+	"time"
+
 	"github.com/fluid-cloudnative/fluid/pkg/utils/kubeclient"
 	securityutils "github.com/fluid-cloudnative/fluid/pkg/utils/security"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type CacheFileUtils struct {
@@ -57,7 +58,7 @@ func (c CacheFileUtils) exec(command []string, timeout time.Duration) (stdout st
 	return
 }
 
-func (c CacheFileUtils) Mount(command []string, timeout time.Duration) (err error) {
+func (c CacheFileUtils) Mount(command []string, timeout time.Duration) (stdout string, err error) {
 	stdout, stderr, err := c.exec(command, timeout)
 
 	if err != nil {
@@ -65,5 +66,21 @@ func (c CacheFileUtils) Mount(command []string, timeout time.Duration) (err erro
 		return
 	}
 
+	return stdout, nil
+}
+
+func (c CacheFileUtils) UnMount(paths []string) (err error) {
+	// For cache engine, unmount is typically done by executing an unmount command in the master pod
+	// The exact command depends on the cache engine implementation
+	// This is a generic implementation that should be customized based on your cache engine
+	for _, path := range paths {
+		command := []string{"umount", path}
+		stdout, stderr, execErr := c.exec(command, 30*time.Second)
+		if execErr != nil {
+			c.log.Error(execErr, "CacheFileUtils.UnMount() failed", "path", path, "stdout", stdout, "stderr", stderr)
+			return execErr
+		}
+		c.log.Info("Successfully unmounted path", "path", path)
+	}
 	return nil
 }

@@ -18,11 +18,16 @@ package engine
 
 import (
 	"context"
+	"reflect"
+	"time"
+
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/ddc/base"
 	"github.com/fluid-cloudnative/fluid/pkg/utils"
 	"github.com/fluid-cloudnative/fluid/pkg/utils/testutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 // getRuntime get the current runtime
@@ -110,4 +115,29 @@ func (e *CacheEngine) getRuntimeInfo() (base.RuntimeInfoInterface, error) {
 	}
 
 	return e.runtimeInfo, nil
+}
+
+// updateMountTime updates the runtime status MountTime to the current time.
+func (e *CacheEngine) updateMountTime() {
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		runtime, err := e.getRuntime()
+		if err != nil {
+			return err
+		}
+
+		runtimeToUpdate := runtime.DeepCopy()
+		runtimeToUpdate.Status.MountTime = &metav1.Time{Time: time.Now()}
+
+		if !reflect.DeepEqual(runtime.Status, runtimeToUpdate.Status) {
+			err = e.Client.Status().Update(context.TODO(), runtimeToUpdate)
+		} else {
+			e.Log.Info("Do nothing because the runtime status is not changed.")
+		}
+
+		return err
+	})
+
+	if err != nil {
+		e.Log.Error(err, "UpdateMountTime", "", e.name)
+	}
 }
