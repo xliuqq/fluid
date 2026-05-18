@@ -103,10 +103,11 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 
 			BeforeEach(func() {
 				masterValue = &common.CacheRuntimeComponentValue{
-					Name:      "test-runtime-master",
-					Namespace: "default",
-					Enabled:   true,
-					Replicas:  1,
+					Name:          "test-runtime-master",
+					Namespace:     "default",
+					Enabled:       true,
+					Replicas:      1,
+					ComponentType: common.ComponentTypeMaster,
 					Owner: &common.OwnerReference{
 						APIVersion: "data.fluid.io/v1alpha1",
 						Kind:       "CacheRuntime",
@@ -133,13 +134,13 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 				ready, err := engine.SetupMasterComponent(masterValue)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ready).To(BeTrue())
-
-				// Verify StatefulSet was created
-				sts := &appsv1.StatefulSet{}
+			
+				// Verify AdvancedStatefulSet was created
+				asts := &workloadv1alpha1.AdvancedStatefulSet{}
 				err = engine.Client.Get(context.TODO(),
-					client.ObjectKey{Name: "test-runtime-master", Namespace: "default"}, sts)
+					client.ObjectKey{Name: "test-runtime-master", Namespace: "default"}, asts)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(sts.Name).To(Equal("test-runtime-master"))
+				Expect(asts.Name).To(Equal("test-runtime-master"))
 			})
 
 			It("should skip setup when master already initialized", func() {
@@ -244,10 +245,11 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 
 			BeforeEach(func() {
 				workerValue = &common.CacheRuntimeComponentValue{
-					Name:      "test-runtime-worker",
-					Namespace: "default",
-					Enabled:   true,
-					Replicas:  2,
+					Name:          "test-runtime-worker",
+					Namespace:     "default",
+					Enabled:       true,
+					Replicas:      2,
+					ComponentType: common.ComponentTypeWorker,
 					Owner: &common.OwnerReference{
 						APIVersion: "data.fluid.io/v1alpha1",
 						Kind:       "CacheRuntime",
@@ -271,11 +273,11 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 				ready, err := engine.SetupWorkerComponent(workerValue)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ready).To(BeTrue())
-
-				// Verify StatefulSet was created
-				sts := &appsv1.StatefulSet{}
+			
+				// Verify AdvancedStatefulSet was created
+				asts := &workloadv1alpha1.AdvancedStatefulSet{}
 				err = engine.Client.Get(context.TODO(),
-					client.ObjectKey{Name: "test-runtime-worker", Namespace: "default"}, sts)
+					client.ObjectKey{Name: "test-runtime-worker", Namespace: "default"}, asts)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -331,10 +333,11 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 
 			BeforeEach(func() {
 				clientValue = &common.CacheRuntimeComponentValue{
-					Name:      "test-runtime-client",
-					Namespace: "default",
-					Enabled:   true,
-					Replicas:  1,
+					Name:          "test-runtime-client",
+					Namespace:     "default",
+					Enabled:       true,
+					Replicas:      1,
+					ComponentType: common.ComponentTypeClient,
 					Owner: &common.OwnerReference{
 						APIVersion: "data.fluid.io/v1alpha1",
 						Kind:       "CacheRuntime",
