@@ -17,10 +17,13 @@
 package engine
 
 import (
+	"fmt"
+
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	"github.com/fluid-cloudnative/fluid/pkg/ddc/base"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,10 +44,14 @@ func (e *CacheEngine) transformWorker(dataset *datav1alpha1.Dataset, runtime *da
 		return err
 	}
 
-	// TODO: TieredStore handling
-
 	// transform container related config, currently only modify the first container
 	e.transformComponentPodTemplate(runtimeWorker.RuntimeComponentCommonSpec, dataset, value.Worker)
+
+	// transform tiered store configuration
+	err = e.transformWorkerTieredStore(&runtimeWorker.TieredStore, &value.Worker.PodTemplateSpec.Spec)
+	if err != nil {
+		return err
+	}
 
 	// make sure affinity not nil
 	if value.Worker.PodTemplateSpec.Spec.Affinity == nil {
@@ -175,4 +182,134 @@ func (e *CacheEngine) buildWorkerAffinity(affinity *corev1.Affinity, dataset *da
 	affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
 		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
 		datasetNodeAffinity.Required.NodeSelectorTerms...)
+}
+
+// transformWorkerTieredStore transforms the tiered store configuration to worker pod spec
+func (e *CacheEngine) transformWorkerTieredStore(tieredStore *datav1alpha1.RuntimeTieredStore, podSpec *corev1.PodSpec) error {
+	if len(tieredStore.Levels) == 0 {
+		return nil
+	}
+
+	if len(podSpec.Containers) == 0 {
+		return fmt.Errorf("no containers found in worker pod spec")
+	}
+
+	container := &podSpec.Containers[0]
+
+	// Process each tier level
+	for i, level := range tieredStore.Levels {
+		// Handle medium source first
+		if level.Medium.ProcessMemory != nil {
+			// Process memory: add resource requests and limits
+			err := e.addProcessMemoryResources(container, level, i)
+			if err != nil {
+				return err
+			}
+		} else if level.Medium.Volume != nil {
+			// Volume-based storage: create volumes and volume mounts
+			err := e.addVolumeStorage(podSpec, container, level, i)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// addProcessMemoryResources adds memory resources to container for process memory medium
+func (e *CacheEngine) addProcessMemoryResources(container *corev1.Container, level datav1alpha1.RuntimeTieredStoreLevel, levelIndex int) error {
+	if len(level.Path) == 0 || len(level.Quota) == 0 {
+		return fmt.Errorf("path and quota must be specified for process memory medium at level %d", levelIndex)
+	}
+
+	// Calculate total memory quota across all paths
+	var totalQuota resource.Quantity
+	for _, quota := range level.Quota {
+		totalQuota.Add(quota)
+	}
+
+	// Initialize resource requirements if not present
+	if container.Resources.Requests == nil {
+		container.Resources.Requests = corev1.ResourceList{}
+	}
+	if container.Resources.Limits == nil {
+		container.Resources.Limits = corev1.ResourceList{}
+	}
+
+	// Add memory requests and limits
+	currentRequest := container.Resources.Requests[corev1.ResourceMemory]
+	currentLimit := container.Resources.Limits[corev1.ResourceMemory]
+
+	newRequest := currentRequest
+	newRequest.Add(totalQuota)
+	newLimit := currentLimit
+	newLimit.Add(totalQuota)
+
+	container.Resources.Requests[corev1.ResourceMemory] = newRequest
+	container.Resources.Limits[corev1.ResourceMemory] = newLimit
+
+	return nil
+}
+
+// addVolumeStorage adds volume and volume mount for volume-based medium
+func (e *CacheEngine) addVolumeStorage(podSpec *corev1.PodSpec, container *corev1.Container, level datav1alpha1.RuntimeTieredStoreLevel, levelIndex int) error {
+	volumeSource := level.Medium.Volume
+	if volumeSource == nil {
+		// not handle
+		return nil
+	}
+
+	// Process each path and corresponding quota
+	for i, path := range level.Path {
+		volumeName := fmt.Sprintf("tieredstore-level%d-path%d", levelIndex, i)
+		mountPath := path
+
+		// Create volume based on volume source type
+		var volume corev1.Volume
+		volume.Name = volumeName
+
+		if volumeSource.HostPath != nil {
+			volume.VolumeSource.HostPath = volumeSource.HostPath.DeepCopy()
+		} else if volumeSource.EmptyDir != nil {
+			volume.VolumeSource.EmptyDir = volumeSource.EmptyDir.DeepCopy()
+			// Set size limit if quota is specified
+			if i < len(level.Quota) {
+				quota := level.Quota[i]
+				// TODO memory 性质的如何处理？
+				if volume.VolumeSource.EmptyDir.SizeLimit == nil {
+					volume.VolumeSource.EmptyDir.SizeLimit = &quota
+				}
+			}
+		} else if volumeSource.Ephemeral != nil {
+			volume.VolumeSource.Ephemeral = volumeSource.Ephemeral.DeepCopy()
+			// Set storage quota in volumeClaimTemplate if specified
+			if i < len(level.Quota) {
+				quota := level.Quota[i]
+				if volume.VolumeSource.Ephemeral.VolumeClaimTemplate != nil {
+					if volume.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests == nil {
+						volume.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests = corev1.ResourceList{}
+					}
+					// Only set if not already specified in the template
+					if _, exists := volume.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]; !exists {
+						volume.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage] = quota
+					}
+				}
+			}
+		} else {
+			return fmt.Errorf("no storage medium for volume source at level %d, path index %d", levelIndex, i)
+		}
+
+		// Add volume to pod spec
+		podSpec.Volumes = append(podSpec.Volumes, volume)
+
+		// Add volume mount to container
+		volumeMount := corev1.VolumeMount{
+			Name:      volumeName,
+			MountPath: mountPath,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, volumeMount)
+	}
+
+	return nil
 }
