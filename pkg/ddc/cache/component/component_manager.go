@@ -19,7 +19,7 @@ package component
 import (
 	"context"
 
-	"github.com/fluid-cloudnative/fluid/api/v1alpha1"
+	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,8 +27,11 @@ import (
 
 type ComponentManager interface {
 	Reconciler(ctx context.Context, component *common.CacheRuntimeComponentValue) error
-	ConstructComponentStatus(todo context.Context, identity *common.ComponentIdentity) (v1alpha1.RuntimeComponentStatus, error)
+	ConstructComponentStatus(todo context.Context, identity *common.ComponentIdentity) (datav1alpha1.RuntimeComponentStatus, error)
 	GetNodeAffinity(identity *common.ComponentIdentity) (*corev1.NodeAffinity, error)
+	// SyncComponentSpec synchronizes component specification changes to the workload
+	// For AdvancedStatefulSet: supports in-place update for compatible fields
+	SyncComponentSpec(ctx context.Context, identity *common.ComponentIdentity, version datav1alpha1.VersionSpec) error
 }
 
 func NewComponentHelper(componentType common.ComponentType, client client.Client) ComponentManager {

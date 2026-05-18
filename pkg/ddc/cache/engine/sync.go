@@ -22,6 +22,8 @@ import (
 	"time"
 
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
+	"github.com/fluid-cloudnative/fluid/pkg/common"
+	"github.com/fluid-cloudnative/fluid/pkg/ddc/cache/component"
 	cruntime "github.com/fluid-cloudnative/fluid/pkg/runtime"
 	"github.com/fluid-cloudnative/fluid/pkg/utils/dataset/lifecycle"
 	"github.com/fluid-cloudnative/fluid/pkg/utils/kubeclient"
@@ -48,12 +50,19 @@ func (e *CacheEngine) Sync(ctx cruntime.ReconcileRequestContext) (err error) {
 
 	// handle ufs change
 
-	// sync runtime status
 	// Use lightweight getRuntimeStatusValue instead of full transform for status update
 	statusValue, err := e.getRuntimeStatusValue(runtime, runtimeClass)
 	if err != nil {
 		return err
 	}
+
+	// sync runtime spec changes to Master/Worker components
+	err = e.syncRuntimeSpec(ctx, runtime, runtimeClass)
+	if err != nil {
+		return err
+	}
+
+	// sync runtime status
 	_, err = e.CheckAndUpdateRuntimeStatus(statusValue)
 	if err != nil {
 		return err
@@ -122,4 +131,46 @@ func getSyncRetryDuration() (d *time.Duration, err error) {
 		d = &duration
 	}
 	return
+}
+
+// syncRuntimeSpec synchronizes CacheRuntime spec changes to component workloads
+// This enables in-place updates for compatible fields without pod recreation
+// Note: Only Master and Worker components support in-place update (using AdvancedStatefulSet)
+// Client component uses DaemonSet and does NOT support in-place update
+func (e *CacheEngine) syncRuntimeSpec(ctx cruntime.ReconcileRequestContext, runtime *datav1alpha1.CacheRuntime, runtimeClass *datav1alpha1.CacheRuntimeClass) error {
+	e.Log.V(1).Info("start syncing runtime spec")
+	defer func() {
+		e.Log.V(1).Info("finished syncing runtime spec")
+	}()
+
+	// Sync Master component if enabled (supports in-place update via AdvancedStatefulSet)
+	if runtimeClass.Topology.Master != nil && !runtime.Spec.Master.Disabled {
+		masterIdentity := &common.ComponentIdentity{
+			Name:      GetComponentName(e.name, common.ComponentTypeMaster),
+			Namespace: e.namespace,
+		}
+		manager := component.NewComponentHelper(common.ComponentTypeMaster, e.Client)
+		if err := manager.SyncComponentSpec(ctx.Context, masterIdentity, runtime.Spec.Master.RuntimeVersion); err != nil {
+			e.Log.Error(err, "failed to sync master component spec", "component", masterIdentity.Name)
+			return err
+		}
+	}
+
+	// Sync Worker component if enabled (supports in-place update via AdvancedStatefulSet)
+	if runtimeClass.Topology.Worker != nil && !runtime.Spec.Worker.Disabled {
+		workerIdentity := &common.ComponentIdentity{
+			Name:      GetComponentName(e.name, common.ComponentTypeWorker),
+			Namespace: e.namespace,
+		}
+		manager := component.NewComponentHelper(common.ComponentTypeWorker, e.Client)
+		if err := manager.SyncComponentSpec(ctx.Context, workerIdentity, runtime.Spec.Worker.RuntimeVersion); err != nil {
+			e.Log.Error(err, "failed to sync worker component spec", "component", workerIdentity.Name)
+			return err
+		}
+	}
+
+	// Note: Client component is NOT synced here because it uses DaemonSet which does not support in-place update
+	// Client component will be recreated when spec changes
+
+	return nil
 }

@@ -19,6 +19,7 @@ package component
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	workloadv1alpha1 "github.com/fluid-cloudnative/advanced-statefulset/api/workload/v1alpha1"
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
@@ -70,9 +71,9 @@ func (s *AdvancedStatefulSetManager) reconcileStatefulSet(ctx context.Context, c
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	// return if already created
+	// if already created, update it
 	if err == nil {
-		return nil
+		return s.updateAdvancedStatefulSet(ctx, asts, component)
 	}
 	// create the advanced stateful set
 	asts = s.constructAdvancedStatefulSet(component)
@@ -134,6 +135,49 @@ func (s *AdvancedStatefulSetManager) constructAdvancedStatefulSet(component *com
 	return asts
 }
 
+// updateAdvancedStatefulSet updates an existing AdvancedStatefulSet with new component configuration
+func (s *AdvancedStatefulSetManager) updateAdvancedStatefulSet(ctx context.Context, existingAsts *workloadv1alpha1.AdvancedStatefulSet, component *common.CacheRuntimeComponentValue) error {
+	logger := log.FromContext(ctx)
+	logger.Info("start to updating advanced statefulset workload")
+
+	// Create a copy of the existing ASTS for comparison
+	astsToUpdate := existingAsts.DeepCopy()
+
+	// Update replicas if changed
+	if component.Replicas != *existingAsts.Spec.Replicas {
+		logger.Info("replicas changed", "old", *existingAsts.Spec.Replicas, "new", component.Replicas)
+		astsToUpdate.Spec.Replicas = &component.Replicas
+	}
+
+	// Update PodTemplateSpec - this is key for in-place updates
+	// The AdvancedStatefulSet controller will detect changes and perform in-place updates when possible
+	matchLabels := getCommonLabelsFromComponent(component)
+	podTemplateSpec := component.PodTemplateSpec
+	podTemplateSpec.Labels = utils.UnionMapsWithOverride(podTemplateSpec.Labels, matchLabels)
+
+	// Check if pod template has changed
+	if !reflect.DeepEqual(existingAsts.Spec.Template, podTemplateSpec) {
+		logger.Info("pod template changed, will trigger update")
+		astsToUpdate.Spec.Template = podTemplateSpec
+	}
+
+	// Only update if there are changes
+	if reflect.DeepEqual(existingAsts, astsToUpdate) {
+		logger.Info("no changes detected, skip update")
+		return nil
+	}
+
+	// Update the AdvancedStatefulSet
+	err := s.client.Update(ctx, astsToUpdate)
+	if err != nil {
+		logger.Error(err, "failed to update advanced statefulset")
+		return err
+	}
+
+	logger.Info("update advanced statefulset workload succeed")
+	return nil
+}
+
 func (s *AdvancedStatefulSetManager) ConstructComponentStatus(ctx context.Context, identity *common.ComponentIdentity) (datav1alpha1.RuntimeComponentStatus, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("start to ConstructComponentStatus")
@@ -167,4 +211,61 @@ func (s *AdvancedStatefulSetManager) ConstructComponentStatus(ctx context.Contex
 		UnavailableReplicas: unavailableReplicas,
 		ReadyReplicas:       readyReplicas,
 	}, nil
+}
+
+// SyncComponentSpec synchronizes component specification changes to the AdvancedStatefulSet
+// This supports in-place update for compatible fields (e.g., image, resources) without pod recreation
+func (s *AdvancedStatefulSetManager) SyncComponentSpec(ctx context.Context, identity *common.ComponentIdentity, version datav1alpha1.VersionSpec) error {
+	logger := log.FromContext(ctx)
+	logger.Info("start syncing runtime version", "component", identity.Name)
+
+	// Get current AdvancedStatefulSet
+	asts := &workloadv1alpha1.AdvancedStatefulSet{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: identity.Name, Namespace: identity.Namespace}, asts)
+	if err != nil {
+		logger.Error(err, "failed to get advanced statefulset")
+		return err
+	}
+
+	// Construct new image
+	newImage := version.Image
+	if version.ImageTag != "" {
+		newImage = newImage + ":" + version.ImageTag
+	}
+
+	// Check if image needs update
+	if len(asts.Spec.Template.Spec.Containers) == 0 {
+		return fmt.Errorf("no containers found in advanced statefulset %s/%s", identity.Namespace, identity.Name)
+	}
+
+	// only update the first container
+	currentImage := asts.Spec.Template.Spec.Containers[0].Image
+	if currentImage == newImage {
+		logger.Info("image already up to date, skip update", "image", newImage)
+		return nil
+	}
+
+	logger.Info("image changed, will patch advanced statefulset", "old", currentImage, "new", newImage)
+
+	// Create a copy for patching to avoid modifying the original object
+	astsToUpdate := asts.DeepCopy()
+	astsToUpdate.Spec.Template.Spec.Containers[0].Image = newImage
+
+	// Set ImagePullPolicy if specified
+	if version.ImagePullPolicy != "" {
+		astsToUpdate.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(version.ImagePullPolicy)
+	}
+
+	// Create patch using the original object as base
+	patch := client.MergeFrom(asts)
+
+	// Apply patch
+	err = s.client.Patch(ctx, astsToUpdate, patch)
+	if err != nil {
+		logger.Error(err, "failed to patch advanced statefulset")
+		return err
+	}
+
+	logger.Info("successfully patched advanced statefulset with new image")
+	return nil
 }
