@@ -19,13 +19,14 @@ package engine
 import (
 	"context"
 
+	workloadv1alpha1 "github.com/fluid-cloudnative/advanced-statefulset/api/workload/v1alpha1"
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	"github.com/fluid-cloudnative/fluid/pkg/ddc/base"
 	"github.com/fluid-cloudnative/fluid/pkg/utils"
-	"github.com/fluid-cloudnative/fluid/pkg/utils/kubeclient"
 	"github.com/fluid-cloudnative/fluid/pkg/utils/testutil"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +39,8 @@ type CacheRuntimeInfo struct {
 
 func (info *CacheRuntimeInfo) GetWorkerPods(client client.Client) ([]corev1.Pod, error) {
 	workerName := GetComponentName(info.GetName(), common.ComponentTypeWorker)
-	workers, err := kubeclient.GetStatefulSet(client, workerName, info.GetNamespace())
+	workers := &workloadv1alpha1.AdvancedStatefulSet{}
+	err := client.Get(context.TODO(), types.NamespacedName{Name: workerName, Namespace: info.GetNamespace()}, workers)
 	if err != nil {
 		return nil, err
 	}
@@ -47,9 +49,22 @@ func (info *CacheRuntimeInfo) GetWorkerPods(client client.Client) ([]corev1.Pod,
 		return nil, err
 	}
 
-	workerPods, err := kubeclient.GetPodsForStatefulSet(client, workers, workerSelector)
+	// Get pods using the selector
+	podList := &corev1.PodList{}
+	err = client.List(context.TODO(), podList)
+	if err != nil {
+		return nil, err
+	}
 
-	return workerPods, err
+	// Filter pods by namespace and selector
+	var filteredPods []corev1.Pod
+	for _, pod := range podList.Items {
+		if pod.Namespace == info.GetNamespace() && workerSelector.Matches(labels.Set(pod.Labels)) {
+			filteredPods = append(filteredPods, pod)
+		}
+	}
+
+	return filteredPods, nil
 }
 
 // getRuntime get the current runtime

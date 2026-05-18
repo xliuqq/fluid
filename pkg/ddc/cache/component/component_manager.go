@@ -22,7 +22,6 @@ import (
 	"github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,16 +31,17 @@ type ComponentManager interface {
 	GetNodeAffinity(identity *common.ComponentIdentity) (*corev1.NodeAffinity, error)
 }
 
-func NewComponentHelper(workloadType metav1.TypeMeta, client client.Client) ComponentManager {
-	if workloadType.APIVersion == "apps/v1" {
-		if workloadType.Kind == "StatefulSet" {
-			return newStatefulSetManager(client)
-		} else if workloadType.Kind == "DaemonSet" {
-			return newDaemonSetManager(client)
-		}
+func NewComponentHelper(componentType common.ComponentType, client client.Client) ComponentManager {
+	// Master and Worker use AdvancedStatefulSet, Client uses DaemonSet
+	switch componentType {
+	case common.ComponentTypeMaster, common.ComponentTypeWorker:
+		return newAdvancedStatefulSetManager(client)
+	case common.ComponentTypeClient:
+		return newDaemonSetManager(client)
+	default:
+		// Default to AdvancedStatefulSetManager for unknown types
+		return newAdvancedStatefulSetManager(client)
 	}
-
-	return newStatefulSetManager(client)
 }
 
 // getCommonLabelsFromComponent returns the common labels for component used for stateful

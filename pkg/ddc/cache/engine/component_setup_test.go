@@ -19,6 +19,7 @@ package engine
 import (
 	"context"
 
+	workloadv1alpha1 "github.com/fluid-cloudnative/advanced-statefulset/api/workload/v1alpha1"
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	"github.com/fluid-cloudnative/fluid/pkg/utils/fake"
@@ -44,6 +45,7 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 		_ = datav1alpha1.AddToScheme(scheme)
 		_ = appsv1.AddToScheme(scheme)
 		_ = corev1.AddToScheme(scheme)
+		_ = workloadv1alpha1.AddToScheme(scheme)
 
 		// Create runtime with None phase (needs setup)
 		runtimeObj = &datav1alpha1.CacheRuntime{
@@ -110,10 +112,6 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 						Kind:       "CacheRuntime",
 						Name:       "test-runtime",
 						UID:        "test-uid",
-					},
-					WorkloadType: metav1.TypeMeta{
-						Kind:       "StatefulSet",
-						APIVersion: "apps/v1",
 					},
 					PodTemplateSpec: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
@@ -256,10 +254,6 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 						Name:       "test-runtime",
 						UID:        "test-uid",
 					},
-					WorkloadType: metav1.TypeMeta{
-						Kind:       "StatefulSet",
-						APIVersion: "apps/v1",
-					},
 					PodTemplateSpec: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
@@ -346,10 +340,6 @@ var _ = Describe("CacheEngine Component Setup Tests", Label("pkg.ddc.cache.engin
 						Kind:       "CacheRuntime",
 						Name:       "test-runtime",
 						UID:        "test-uid",
-					},
-					WorkloadType: metav1.TypeMeta{
-						Kind:       "DaemonSet",
-						APIVersion: "apps/v1",
 					},
 					PodTemplateSpec: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{

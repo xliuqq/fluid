@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	workloadv1alpha1 "github.com/fluid-cloudnative/advanced-statefulset/api/workload/v1alpha1"
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
 	"github.com/fluid-cloudnative/fluid/pkg/common"
 	"github.com/fluid-cloudnative/fluid/pkg/utils"
@@ -33,15 +34,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type StatefulSetManager struct {
+type AdvancedStatefulSetManager struct {
 	client client.Client
 }
 
-func newStatefulSetManager(client client.Client) *StatefulSetManager {
-	return &StatefulSetManager{client: client}
+func newAdvancedStatefulSetManager(client client.Client) *AdvancedStatefulSetManager {
+	return &AdvancedStatefulSetManager{client: client}
 }
 
-func (s *StatefulSetManager) Reconciler(ctx context.Context, component *common.CacheRuntimeComponentValue) error {
+func (s *AdvancedStatefulSetManager) Reconciler(ctx context.Context, component *common.CacheRuntimeComponentValue) error {
 	if err := s.reconcileStatefulSet(ctx, component); err != nil {
 		return err
 	}
@@ -49,21 +50,23 @@ func (s *StatefulSetManager) Reconciler(ctx context.Context, component *common.C
 	return reconcileService(ctx, s.client, component)
 }
 
-func (s *StatefulSetManager) GetNodeAffinity(identity *common.ComponentIdentity) (*corev1.NodeAffinity, error) {
-	sts, err := kubeclient.GetStatefulSet(s.client, identity.Name, identity.Namespace)
+func (s *AdvancedStatefulSetManager) GetNodeAffinity(identity *common.ComponentIdentity) (*corev1.NodeAffinity, error) {
+	asts := &workloadv1alpha1.AdvancedStatefulSet{}
+	err := s.client.Get(context.TODO(), types.NamespacedName{Name: identity.Name, Namespace: identity.Namespace}, asts)
 	if err != nil {
 		return nil, err
 	}
 
-	affinity := kubeclient.MergeNodeSelectorAndNodeAffinity(sts.Spec.Template.Spec.NodeSelector, sts.Spec.Template.Spec.Affinity)
+	affinity := kubeclient.MergeNodeSelectorAndNodeAffinity(asts.Spec.Template.Spec.NodeSelector, asts.Spec.Template.Spec.Affinity)
 	return affinity, nil
 }
 
-func (s *StatefulSetManager) reconcileStatefulSet(ctx context.Context, component *common.CacheRuntimeComponentValue) error {
+func (s *AdvancedStatefulSetManager) reconcileStatefulSet(ctx context.Context, component *common.CacheRuntimeComponentValue) error {
 	logger := log.FromContext(ctx)
-	logger.Info("start to reconciling sts workload")
+	logger.Info("start to reconciling advanced statefulset workload")
 
-	_, err := kubeclient.GetStatefulSet(s.client, component.Name, component.Namespace)
+	asts := &workloadv1alpha1.AdvancedStatefulSet{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: component.Name, Namespace: component.Namespace}, asts)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -71,23 +74,29 @@ func (s *StatefulSetManager) reconcileStatefulSet(ctx context.Context, component
 	if err == nil {
 		return nil
 	}
-	// create the stateful set
-	sts := s.constructStatefulSet(component)
-	err = s.client.Create(ctx, sts)
+	// create the advanced stateful set
+	asts = s.constructAdvancedStatefulSet(component)
+	err = s.client.Create(ctx, asts)
 	if err != nil {
 		return err
 	}
-	logger.Info("create sts workload succeed")
+	logger.Info("create advanced statefulset workload succeed")
 	return nil
 }
-func (s *StatefulSetManager) constructStatefulSet(component *common.CacheRuntimeComponentValue) *appsv1.StatefulSet {
+func (s *AdvancedStatefulSetManager) constructAdvancedStatefulSet(component *common.CacheRuntimeComponentValue) *workloadv1alpha1.AdvancedStatefulSet {
 	matchLabels := getCommonLabelsFromComponent(component)
 
 	podTemplateSpec := component.PodTemplateSpec
 	podTemplateSpec.Labels = utils.UnionMapsWithOverride(podTemplateSpec.Labels, matchLabels)
 
 	trueVar := true
-	sts := &appsv1.StatefulSet{
+
+	// Configure rolling update strategy with in-place update support
+	rollingUpdateStrategy := &workloadv1alpha1.RollingUpdateStatefulSetStrategy{
+		PodUpdatePolicy: workloadv1alpha1.InPlaceIfPossiblePodUpdateStrategyType,
+	}
+
+	asts := &workloadv1alpha1.AdvancedStatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      component.Name,
 			Namespace: component.Namespace,
@@ -103,36 +112,41 @@ func (s *StatefulSetManager) constructStatefulSet(component *common.CacheRuntime
 				},
 			},
 		},
-		Spec: appsv1.StatefulSetSpec{
+		Spec: workloadv1alpha1.AdvancedStatefulSetSpec{
 			Replicas:            &component.Replicas,
 			Template:            podTemplateSpec,
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: matchLabels,
 			},
+			UpdateStrategy: workloadv1alpha1.StatefulSetUpdateStrategy{
+				Type:          appsv1.RollingUpdateStatefulSetStrategyType,
+				RollingUpdate: rollingUpdateStrategy,
+			},
 		},
 	}
 
 	// Set ServiceName if service is configured
 	if component.Service != nil {
-		sts.Spec.ServiceName = component.Service.Name
+		asts.Spec.ServiceName = component.Service.Name
 	}
 
-	return sts
+	return asts
 }
 
-func (s *StatefulSetManager) ConstructComponentStatus(ctx context.Context, identity *common.ComponentIdentity) (datav1alpha1.RuntimeComponentStatus, error) {
+func (s *AdvancedStatefulSetManager) ConstructComponentStatus(ctx context.Context, identity *common.ComponentIdentity) (datav1alpha1.RuntimeComponentStatus, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("start to ConstructComponentStatus")
 
-	sts, err := kubeclient.GetStatefulSet(s.client, identity.Name, identity.Namespace)
+	asts := &workloadv1alpha1.AdvancedStatefulSet{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: identity.Name, Namespace: identity.Namespace}, asts)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("failed to get component: %s/%s", identity.Namespace, identity.Name))
 		return datav1alpha1.RuntimeComponentStatus{}, err
 	}
 
-	desiredReplicas := *sts.Spec.Replicas
-	readyReplicas := sts.Status.ReadyReplicas
+	desiredReplicas := *asts.Spec.Replicas
+	readyReplicas := asts.Status.ReadyReplicas
 
 	runtimePhase := datav1alpha1.RuntimePhaseNotReady
 	if desiredReplicas == readyReplicas {
@@ -140,7 +154,7 @@ func (s *StatefulSetManager) ConstructComponentStatus(ctx context.Context, ident
 	}
 
 	// AvailableReplicas can be greater than CurrentReplicas (Kubernetes API allows this)
-	unavailableReplicas := sts.Status.CurrentReplicas - sts.Status.AvailableReplicas
+	unavailableReplicas := asts.Status.CurrentReplicas - asts.Status.AvailableReplicas
 	if unavailableReplicas < 0 {
 		unavailableReplicas = 0
 	}
@@ -148,8 +162,8 @@ func (s *StatefulSetManager) ConstructComponentStatus(ctx context.Context, ident
 	return datav1alpha1.RuntimeComponentStatus{
 		Phase:               runtimePhase,
 		DesiredReplicas:     desiredReplicas,
-		CurrentReplicas:     sts.Status.CurrentReplicas,
-		AvailableReplicas:   sts.Status.AvailableReplicas,
+		CurrentReplicas:     asts.Status.CurrentReplicas,
+		AvailableReplicas:   asts.Status.AvailableReplicas,
 		UnavailableReplicas: unavailableReplicas,
 		ReadyReplicas:       readyReplicas,
 	}, nil
