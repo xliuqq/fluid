@@ -327,7 +327,7 @@ type CacheRuntimeMountUfsOutput struct {
 // CacheRuntimeReportSummary defines the return structure for ReportSummary execution entry.
 // It contains cache status information such as capacity, hit ratio, and cached data size.
 type CacheRuntimeReportSummary struct {
-	// Cached is the amount of data cached, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+	// Cached is the amount of data cached, in bytes.
 	// +optional
 	Cached string `json:"cached,omitempty"`
 
@@ -342,4 +342,12 @@ type CacheRuntimeReportSummary struct {
 	// CacheHitRatio defines the total cache hit ratio (both local hit and remote hit).
 	// +optional
 	CacheHitRatio string `json:"cacheHitRatio,omitempty"`
+
+	// FileNum represents the file numbers of the dataset
+	// +optional
+	FileNum string `json:"fileNum,omitempty"`
+
+	// UfsTotal is the total size of the dataset in the cluster, in GB.
+	// +optional
+	UfsTotal string `json:"ufsTotal,omitempty"`
 }

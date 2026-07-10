@@ -43,6 +43,17 @@ func (e *CacheEngine) BindToDataset(runtime *datav1alpha1.CacheRuntime, runtimeC
 }
 
 func (e *CacheEngine) UpdateDatasetStatus(phase datav1alpha1.DatasetPhase, runtime *datav1alpha1.CacheRuntime, runtimeClass *datav1alpha1.CacheRuntimeClass) (err error) {
+	var cacheStates common.CacheStateList
+
+	// only update cache states for BoundDatasetPhase
+	if phase == datav1alpha1.BoundDatasetPhase {
+		e.Log.V(1).Info("Start to update cache states")
+		cacheStates, err = e.GetCacheStates(runtime, runtimeClass)
+		if err != nil {
+			e.Log.Error(err, "Failed to get cache states, keeping previous cache states in dataset status")
+		}
+	}
+
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		dataset, err := utils.GetDataset(e.Client, e.name, e.namespace)
 		if err != nil {
@@ -67,6 +78,13 @@ func (e *CacheEngine) UpdateDatasetStatus(phase datav1alpha1.DatasetPhase, runti
 				common.CacheRuntime,
 				0))
 
+			// keep previous values if cache states are nil
+			if cacheStates != nil {
+				datasetToUpdate.Status.CacheStates = cacheStates
+				datasetToUpdate.Status.FileNum = cacheStates[common.FileNum]
+				datasetToUpdate.Status.UfsTotal = cacheStates[common.UfsTotal]
+			}
+
 			cond = utils.NewDatasetCondition(datav1alpha1.DatasetReady, datav1alpha1.DatasetReadyReason,
 				"The ddc runtime is ready.",
 				corev1.ConditionTrue)
@@ -83,13 +101,6 @@ func (e *CacheEngine) UpdateDatasetStatus(phase datav1alpha1.DatasetPhase, runti
 		datasetToUpdate.Status.Phase = phase
 		datasetToUpdate.Status.Conditions = utils.UpdateDatasetCondition(datasetToUpdate.Status.Conditions,
 			cond)
-
-		cacheStates, err := e.GetCacheStates(runtime, runtimeClass)
-		if err == nil {
-			datasetToUpdate.Status.CacheStates = cacheStates
-		} else {
-			e.Log.Error(err, "Failed to get cache states, keeping previous cache states in dataset status")
-		}
 
 		if !reflect.DeepEqual(dataset.Status, datasetToUpdate.Status) {
 			e.Log.Info("the dataset status", "status", datasetToUpdate.Status)
@@ -157,6 +168,8 @@ func (e *CacheEngine) GetCacheStates(runtime *datav1alpha1.CacheRuntime, runtime
 	cacheStates[common.CachedPercentage] = reportSummary.CachedPercentage
 	cacheStates[common.CacheCapacity] = reportSummary.CacheCapacity
 	cacheStates[common.CacheHitRatio] = reportSummary.CacheHitRatio
+	cacheStates[common.FileNum] = reportSummary.FileNum
+	cacheStates[common.UfsTotal] = reportSummary.UfsTotal
 
 	return cacheStates, nil
 }
