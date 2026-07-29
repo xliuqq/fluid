@@ -119,14 +119,22 @@ metadata:
 fileSystemType: $fsType
 topology:
   master:
-    workloadType: # Create master with StatefulSet workload
-      apiVersion: apps/v1
-      kind: StatefulSet
-    service: # Need to create Headless Service for master, only supported when workloadType is StatefulSet
+    service: # Need to create Headless Service for master
       headless: {}
-    dependencies:
-      encryptOption: {} # Current not support
-    podTemplateSpec:
+    executionEntries:
+      mountUFS: # mount ufs in master pod, see section 2.7 
+        command:
+          - bash
+          - -c
+          - /mountUfs.sh
+        timeout: 120
+      reportSummary: # get cache states in master pod, see section 2.8 
+        command:
+          - bash
+          - -c
+          - /reportSummary.sh
+        timeout: 30
+    template:
       spec:
         restartPolicy: Always
         containers:
@@ -138,13 +146,9 @@ topology:
           - custom-endpoint.sh
           imagePullPolicy: IfNotPresent
   worker:
-    workloadType: # Create worker with StatefulSet workload
-      apiVersion: apps/v1
-      kind: StatefulSet
-    service:
-      headless: {} # Need to create Headless Service for worker, only supported when workloadType is StatefulSet
-    dependencies: {} 
-    podTemplateSpec:
+    service: # create Headless Service for worker
+      headless: {} 
+    template:
       spec:
         restartPolicy: Always
         containers:
@@ -156,12 +160,7 @@ topology:
           - custom-endpoint.sh
           imagePullPolicy: IfNotPresent
   client:
-    workloadType: # Create client with DaemonSet workload
-      apiVersion: apps/v1
-      kind: DaemonSet
-    dependencies:
-      encryptOption: {} # Need to provide encryptOption declared by user in dataset for client
-    podTemplateSpec:
+    template:
       spec:
         restartPolicy: Always
         containers:
