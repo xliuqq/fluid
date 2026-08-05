@@ -119,14 +119,22 @@ metadata:
 fileSystemType: $fsType
 topology:
   master:
-    workloadType: #以StatefulSet workload创建master
-      apiVersion: apps/v1
-      kind: StatefulSet
-    service: #需要为master创建Headless Service，仅当workloadType为Statefulset时支持
+    service: # 对于 Master-Slave 架构，需要为 Master 创建 Headless Service
       headless: {}
-    dependencies:
-      encryptOption: {} # 当前暂未支持
-    podTemplateSpec:
+    executionEntries:
+      mountUFS: # mount ufs in master pod, 见 2.7 节
+        command:
+          - bash
+          - -c
+          - /mountUfs.sh
+        timeout: 120
+      reportSummary: # get cache states in master pod, 见 2.8 节
+        command:
+          - bash
+          - -c
+          - /reportSummary.sh
+        timeout: 30
+    template:
       spec:
         restartPolicy: Always
         containers:
@@ -138,13 +146,9 @@ topology:
           - custom-endpoint.sh
           imagePullPolicy: IfNotPresent
   worker:
-    workloadType: #以StatefulSet workload创建worker
-      apiVersion: apps/v1
-      kind: StatefulSet
-    service:
-      headless: {} #需要为worker创建Headless Service，仅当workloadType为Statefulset时支持
-    dependencies: {} 
-    podTemplateSpec:
+    service: # 对于 Worker 创建 Headless Service
+      headless: {} 
+    template:
       spec:
         restartPolicy: Always
         containers:
@@ -156,12 +160,7 @@ topology:
           - custom-endpoint.sh
           imagePullPolicy: IfNotPresent
   client:
-    workloadType: #DaemonSet workload创建client
-      apiVersion: apps/v1
-      kind: DaemonSet
-    dependencies:
-      encryptOption: {} #需要为client提供用户在dataset中声明的encryptOption
-    podTemplateSpec:
+    template:
       spec:
         restartPolicy: Always
         containers:
