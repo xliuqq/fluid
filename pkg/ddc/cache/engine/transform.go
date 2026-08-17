@@ -17,7 +17,6 @@
 package engine
 
 import (
-	"fmt"
 	"time"
 
 	datav1alpha1 "github.com/fluid-cloudnative/fluid/api/v1alpha1"
@@ -48,10 +47,8 @@ type RuntimeConfigVolumeConfig struct {
 }
 
 func (e *CacheEngine) transform(dataset *datav1alpha1.Dataset, runtime *datav1alpha1.CacheRuntime, runtimeClass *datav1alpha1.CacheRuntimeClass) (*common.CacheRuntimeValue, error) {
-
-	if runtimeClass.Topology == nil ||
-		(runtimeClass.Topology.Master == nil && runtimeClass.Topology.Worker == nil && runtimeClass.Topology.Client == nil) {
-		return nil, fmt.Errorf("at least one component should be defined in runtimeClass")
+	if err := validateRuntimeClassTopology(runtimeClass); err != nil {
+		return nil, err
 	}
 	defer utils.TimeTrack(time.Now(), "CacheRuntime.transform", "name", runtime.Name)
 
@@ -83,9 +80,8 @@ func (e *CacheEngine) transform(dataset *datav1alpha1.Dataset, runtime *datav1al
 // getRuntimeStatusValue extracts minimal component status information from runtimeClass and runtime spec
 // This is a lightweight alternative to transform() when only status update is needed
 func (e *CacheEngine) getRuntimeStatusValue(runtime *datav1alpha1.CacheRuntime, runtimeClass *datav1alpha1.CacheRuntimeClass) (*common.CacheRuntimeStatusValue, error) {
-	if runtimeClass.Topology == nil ||
-		(runtimeClass.Topology.Master == nil && runtimeClass.Topology.Worker == nil && runtimeClass.Topology.Client == nil) {
-		return nil, fmt.Errorf("at least one component should be defined in runtimeClass")
+	if err := validateRuntimeClassTopology(runtimeClass); err != nil {
+		return nil, err
 	}
 
 	statusValue := &common.CacheRuntimeStatusValue{}

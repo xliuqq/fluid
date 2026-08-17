@@ -70,7 +70,6 @@ func (e *CacheEngine) getRuntime() (*datav1alpha1.CacheRuntime, error) {
 	if err := e.Get(context.TODO(), key, &runtime); err != nil {
 		return nil, err
 	}
-
 	return &runtime, nil
 }
 
@@ -82,7 +81,9 @@ func (e *CacheEngine) getRuntimeClass(runtimeClassName string) (*datav1alpha1.Ca
 	if err := e.Get(context.TODO(), key, &runtimeClass); err != nil {
 		return nil, err
 	}
-
+	if err := validateRuntimeClassTopology(&runtimeClass); err != nil {
+		return nil, err
+	}
 	return &runtimeClass, nil
 }
 
