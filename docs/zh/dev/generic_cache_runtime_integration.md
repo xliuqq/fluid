@@ -175,6 +175,17 @@ topology:
           - custom-endpoint.sh
           imagePullPolicy: IfNotPresent
 ```
+#### 无 Client 组件的场景
+
+topology 中的 master、worker、client 三个组件在 API 上均为可选。如果底层缓存系统具备以下特征，可以**不声明 client**：
+
+1. **无 POSIX 挂载语义**：缓存系统本身不提供 FUSE 之类的挂载能力
+2. **应用直连访问**：应用通过缓存系统自带的 SDK 或 RPC 客户端直接读写 master/worker，不依赖挂载点
+
+此时 Master 与 Worker 组件正常拉起，Dataset 正常进入 Bound 状态，缓存状态也会通过 ReportSummary 脚本正常上报。
+
+需要注意的是，Fluid 仍会为该 Dataset 创建 PVC/PV 且状态为 Bound，但业务 Pod 挂载该 PVC 会一直停留在 ContainerCreating（报 timeout waiting for FUSE mount point）。这类缓存系统应由应用直连缓存服务读写，不要走 Dataset → PVC → volumeMounts 这条路径。完整配置示例参见 [使用 CacheRuntime 部署 Mooncake](../samples/cacheruntime/mooncake_cache_runtime.md)。
+
 
 ### 步骤2.5 用户创建Runtime
 

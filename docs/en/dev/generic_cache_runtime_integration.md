@@ -176,6 +176,17 @@ topology:
           imagePullPolicy: IfNotPresent
 ```
 
+#### Cache Systems Without a Client Component
+
+The master, worker and client components under `topology` are all optional in the API. You may omit the **client** component if the underlying cache system has both of the following characteristics:
+
+1. **No POSIX mount semantics**: the cache system itself provides no FUSE-like mount capability.
+2. **Applications connect directly**: applications read and write against the master/worker through the cache system's own SDK or RPC client, without relying on a mount point.
+
+In that case the Master and Worker components start as usual, the Dataset reaches the Bound phase as usual, and cache status is still reported through the ReportSummary script.
+
+Note that Fluid still creates a PVC/PV for such a Dataset and reports them as Bound, but an application pod that mounts the PVC stays in ContainerCreating forever (reporting `timeout waiting for FUSE mount point`). For this kind of cache system, applications should talk to the cache service directly instead of going through the Dataset → PVC → volumeMounts path. For a complete configuration example, see [Deploy Mooncake with CacheRuntime](../samples/cacheruntime/mooncake_cache_runtime.md).
+
 ### Step 2.5 User Creates Runtime
 
 ```yaml
