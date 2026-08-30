@@ -33,6 +33,7 @@ import (
 	cruntime "github.com/fluid-cloudnative/fluid/pkg/runtime"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -855,6 +856,132 @@ var _ = Describe("CacheEngine Sync Tests", Label("pkg.ddc.cache.engine.sync_test
 				Expect(duration).NotTo(BeNil())
 				expected := 1*time.Hour + 30*time.Minute + 45*time.Second
 				Expect(*duration).To(Equal(expected))
+			})
+		})
+	})
+
+	Describe("syncRuntimeSpec", func() {
+		const masterSts, workerSts = "test-runtime-master", "test-runtime-worker"
+
+		// templateResources mirrors the value the creation path derives from the
+		// CacheRuntimeClass template, i.e. what a sync must leave untouched.
+		templateResources := corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+		}
+
+		// seedTemplateResources reproduces the post-creation state: the template declares
+		// resources and the already-created workload carries them.
+		seedTemplateResources := func(stsName string, template *corev1.PodTemplateSpec) {
+			template.Spec.Containers[0].Resources = *templateResources.DeepCopy()
+
+			sts := &workloadv1alpha1.AdvancedStatefulSet{}
+			key := types.NamespacedName{Name: stsName, Namespace: "default"}
+			Expect(fakeClient.Get(ctx.Context, key, sts)).To(Succeed())
+			sts.Spec.Template.Spec.Containers[0].Resources = *templateResources.DeepCopy()
+			Expect(fakeClient.Update(ctx.Context, sts)).To(Succeed())
+		}
+
+		memLimitOf := func(stsName string) string {
+			sts := &workloadv1alpha1.AdvancedStatefulSet{}
+			key := types.NamespacedName{Name: stsName, Namespace: "default"}
+			Expect(fakeClient.Get(ctx.Context, key, sts)).To(Succeed())
+			limit := sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory]
+			return limit.String()
+		}
+
+		BeforeEach(func() {
+			seedTemplateResources(masterSts, &runtimeClass.Topology.Master.Template)
+			seedTemplateResources(workerSts, &runtimeClass.Topology.Worker.Template)
+		})
+
+		Context("when the CacheRuntime does not specify resources", func() {
+			It("should leave the template's resources untouched", func() {
+				Expect(runtimeObj.Spec.Master.Resources.Limits).To(BeNil())
+				Expect(runtimeObj.Spec.Master.Resources.Requests).To(BeNil())
+				Expect(runtimeObj.Spec.Worker.Resources.Limits).To(BeNil())
+				Expect(runtimeObj.Spec.Worker.Resources.Requests).To(BeNil())
+
+				Expect(engine.syncRuntimeSpec(ctx, runtimeObj, runtimeClass)).To(Succeed())
+
+				Expect(memLimitOf(masterSts)).To(Equal("2Gi"))
+				Expect(memLimitOf(workerSts)).To(Equal("2Gi"))
+			})
+		})
+
+		Context("when the CacheRuntime specifies resources", func() {
+			It("should apply them to the master workload only", func() {
+				runtimeObj.Spec.Master.Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+				}
+
+				Expect(engine.syncRuntimeSpec(ctx, runtimeObj, runtimeClass)).To(Succeed())
+
+				Expect(memLimitOf(masterSts)).To(Equal("4Gi"))
+				Expect(memLimitOf(workerSts)).To(Equal("2Gi"))
+			})
+
+			It("should apply them to the worker workload only", func() {
+				runtimeObj.Spec.Worker.Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+				}
+
+				Expect(engine.syncRuntimeSpec(ctx, runtimeObj, runtimeClass)).To(Succeed())
+
+				Expect(memLimitOf(workerSts)).To(Equal("4Gi"))
+				Expect(memLimitOf(masterSts)).To(Equal("2Gi"))
+			})
+		})
+
+		Context("when the workload no longer matches the template", func() {
+			// setWorkloadMemLimit edits the workload behind the runtime's back, standing in
+			// for a workload that drifted from the template for any reason.
+			setWorkloadMemLimit := func(stsName, limit string) {
+				sts := &workloadv1alpha1.AdvancedStatefulSet{}
+				key := types.NamespacedName{Name: stsName, Namespace: "default"}
+				Expect(fakeClient.Get(ctx.Context, key, sts)).To(Succeed())
+				sts.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse(limit)},
+				}
+				Expect(fakeClient.Update(ctx.Context, sts)).To(Succeed())
+			}
+
+			It("should restore the template value when the CacheRuntime specifies none", func() {
+				setWorkloadMemLimit(workerSts, "8Gi")
+				Expect(runtimeObj.Spec.Worker.Resources.Limits).To(BeNil())
+				Expect(runtimeObj.Spec.Worker.Resources.Requests).To(BeNil())
+
+				Expect(engine.syncRuntimeSpec(ctx, runtimeObj, runtimeClass)).To(Succeed())
+
+				Expect(memLimitOf(workerSts)).To(Equal("2Gi"))
+			})
+
+			It("should still let the CacheRuntime win over the template", func() {
+				setWorkloadMemLimit(workerSts, "8Gi")
+				runtimeObj.Spec.Worker.Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+				}
+
+				Expect(engine.syncRuntimeSpec(ctx, runtimeObj, runtimeClass)).To(Succeed())
+
+				Expect(memLimitOf(workerSts)).To(Equal("4Gi"))
+			})
+		})
+
+		Context("when neither the CacheRuntime nor the template specifies resources", func() {
+			It("should leave the workload's resources untouched", func() {
+				runtimeClass.Topology.Worker.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{}
+
+				sts := &workloadv1alpha1.AdvancedStatefulSet{}
+				key := types.NamespacedName{Name: workerSts, Namespace: "default"}
+				Expect(fakeClient.Get(ctx.Context, key, sts)).To(Succeed())
+				sts.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("8Gi")},
+				}
+				Expect(fakeClient.Update(ctx.Context, sts)).To(Succeed())
+
+				Expect(engine.syncRuntimeSpec(ctx, runtimeObj, runtimeClass)).To(Succeed())
+
+				Expect(memLimitOf(workerSts)).To(Equal("8Gi"))
 			})
 		})
 	})

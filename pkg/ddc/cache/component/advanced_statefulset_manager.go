@@ -216,8 +216,10 @@ func (s *AdvancedStatefulSetManager) SyncComponentSpec(ctx context.Context, iden
 	}
 
 	// 3. Update resources if specified
-	if s.updateResources(astsToUpdate, newSpec.Resources, logger) {
-		needsUpdate = true
+	if newSpec.Resources != nil {
+		if s.updateResources(astsToUpdate, *newSpec.Resources, logger) {
+			needsUpdate = true
+		}
 	}
 
 	// Skip patching if no changes detected

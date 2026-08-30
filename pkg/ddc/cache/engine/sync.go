@@ -193,15 +193,9 @@ func (e *CacheEngine) syncRuntimeSpec(ctx cruntime.ReconcileRequestContext, runt
 			Namespace: e.namespace,
 		}
 		manager := component.NewComponentHelper(common.ComponentTypeMaster, e.Client)
-		// Only sync resources if they are explicitly set (not zero-value)
-		// This prevents overwriting template defaults when user hasn't specified resources
-		var resources corev1.ResourceRequirements
-		if runtime.Spec.Master.Resources.Requests != nil || runtime.Spec.Master.Resources.Limits != nil {
-			resources = runtime.Spec.Master.Resources
-		}
 		masterSpec := component.ComponentSpec{
 			Version:   runtime.Spec.Master.RuntimeVersion,
-			Resources: resources,
+			Resources: desiredComponentResources(runtime.Spec.Master.Resources, runtimeClass.Topology.Master),
 			Replicas:  &runtime.Spec.Master.Replicas,
 		}
 		if err := manager.SyncComponentSpec(ctx.Context, masterIdentity, masterSpec); err != nil {
@@ -217,15 +211,9 @@ func (e *CacheEngine) syncRuntimeSpec(ctx cruntime.ReconcileRequestContext, runt
 			Namespace: e.namespace,
 		}
 		manager := component.NewComponentHelper(common.ComponentTypeWorker, e.Client)
-		// Only sync resources if they are explicitly set (not zero-value)
-		// This prevents overwriting template defaults when user hasn't specified resources
-		var workerResources corev1.ResourceRequirements
-		if runtime.Spec.Worker.Resources.Requests != nil || runtime.Spec.Worker.Resources.Limits != nil {
-			workerResources = runtime.Spec.Worker.Resources
-		}
 		workerSpec := component.ComponentSpec{
 			Version:   runtime.Spec.Worker.RuntimeVersion,
-			Resources: workerResources,
+			Resources: desiredComponentResources(runtime.Spec.Worker.Resources, runtimeClass.Topology.Worker),
 			Replicas:  &runtime.Spec.Worker.Replicas,
 		}
 		if err := manager.SyncComponentSpec(ctx.Context, workerIdentity, workerSpec); err != nil {
@@ -238,6 +226,31 @@ func (e *CacheEngine) syncRuntimeSpec(ctx cruntime.ReconcileRequestContext, runt
 	// Client component will be recreated when spec changes
 
 	return nil
+}
+
+// desiredComponentResources resolves the resources that should be synced to a
+// component's workload. A value set on the CacheRuntime wins; when the CacheRuntime
+// sets none, the CacheRuntimeClass template value is used, which is what the creation
+// path rendered into the workload. A nil return means neither declares resources, and
+// the workload's current resources are left untouched.
+//
+// Only the first container is considered, matching the creation path, which also only
+// fills in resources for Containers[0].
+func desiredComponentResources(runtimeResources corev1.ResourceRequirements, componentDefinition *datav1alpha1.RuntimeComponentDefinition) *corev1.ResourceRequirements {
+	if runtimeResources.Requests != nil || runtimeResources.Limits != nil {
+		return runtimeResources.DeepCopy()
+	}
+
+	if componentDefinition == nil || len(componentDefinition.Template.Spec.Containers) == 0 {
+		return nil
+	}
+
+	templateResources := componentDefinition.Template.Spec.Containers[0].Resources
+	if templateResources.Requests == nil && templateResources.Limits == nil {
+		return nil
+	}
+
+	return templateResources.DeepCopy()
 }
 
 func (e *CacheEngine) syncDatasetCacheStates(ctx cruntime.ReconcileRequestContext, runtime *datav1alpha1.CacheRuntime, runtimeClass *datav1alpha1.CacheRuntimeClass) (err error) {

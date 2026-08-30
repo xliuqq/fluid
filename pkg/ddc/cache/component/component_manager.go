@@ -44,7 +44,7 @@ type ComponentSpec struct {
 	// Version contains image and pull policy information
 	Version datav1alpha1.VersionSpec
 	// Resources contains CPU and memory resource requirements
-	Resources corev1.ResourceRequirements
+	Resources *corev1.ResourceRequirements
 }
 
 func NewComponentHelper(componentType common.ComponentType, client client.Client) ComponentManager {

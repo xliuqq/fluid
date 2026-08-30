@@ -233,7 +233,7 @@ var _ = Describe("AdvancedStatefulSetManager SyncComponentSpec", func() {
 		Context("when updating resources", func() {
 			It("should update both requests and limits", func() {
 				spec := ComponentSpec{
-					Resources: corev1.ResourceRequirements{
+					Resources: &corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("4"),
 							corev1.ResourceMemory: resource.MustParse("8Gi"),
@@ -265,7 +265,7 @@ var _ = Describe("AdvancedStatefulSetManager SyncComponentSpec", func() {
 
 			It("should not update when resources unchanged", func() {
 				spec := ComponentSpec{
-					Resources: corev1.ResourceRequirements{
+					Resources: &corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("2"),
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -302,7 +302,7 @@ var _ = Describe("AdvancedStatefulSetManager SyncComponentSpec", func() {
 						Image:    "fluid-cache",
 						ImageTag: "v1.1.0",
 					},
-					Resources: corev1.ResourceRequirements{
+					Resources: &corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU: resource.MustParse("4"),
 						},

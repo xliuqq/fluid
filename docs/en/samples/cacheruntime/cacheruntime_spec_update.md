@@ -73,8 +73,19 @@ spec:
         memory: 16Gi
 ```
 
+**Resolution order**:
+
+`resources` is resolved as follows on every reconcile:
+
+1. the value set on the CacheRuntime, if it declares any `requests` or `limits`;
+2. otherwise the value declared by the CacheRuntimeClass template;
+3. otherwise nothing is synced and the workload keeps its current resources.
+
 **Limitations**:
 - ⚠️ Cannot exceed the node's available resources.
+- ⚠️ When the CacheRuntimeClass template declares `resources`, removing `resources` from the
+  CacheRuntime does **not** leave the component unconstrained — it falls back to the template value.
+  To relax a limit, set the value you want explicitly instead of removing the field.
 - ⚠️ **Kubernetes version requirement**: K8s >= 1.27 with the `InPlacePodVerticalScaling` Feature Gate enabled.
   ```bash
   # Check if the Feature Gate is enabled
