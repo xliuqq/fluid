@@ -60,6 +60,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataLoad":                          schema_fluid_cloudnative_fluid_api_v1alpha1_DataLoad(ref),
 		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataLoadList":                      schema_fluid_cloudnative_fluid_api_v1alpha1_DataLoadList(ref),
 		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataLoadSpec":                      schema_fluid_cloudnative_fluid_api_v1alpha1_DataLoadSpec(ref),
+		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnload":                        schema_fluid_cloudnative_fluid_api_v1alpha1_DataUnload(ref),
+		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnloadList":                    schema_fluid_cloudnative_fluid_api_v1alpha1_DataUnloadList(ref),
+		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnloadSpec":                    schema_fluid_cloudnative_fluid_api_v1alpha1_DataUnloadSpec(ref),
 		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataMigrate":                       schema_fluid_cloudnative_fluid_api_v1alpha1_DataMigrate(ref),
 		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataMigrateList":                   schema_fluid_cloudnative_fluid_api_v1alpha1_DataMigrateList(ref),
 		"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataMigrateSpec":                   schema_fluid_cloudnative_fluid_api_v1alpha1_DataMigrateSpec(ref),
@@ -2453,6 +2456,237 @@ func schema_fluid_cloudnative_fluid_api_v1alpha1_DataLoadSpec(ref common.Referen
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources that will be requested by the DataLoad job. <br>",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/fluid-cloudnative/fluid/api/v1alpha1.OperationRef", "github.com/fluid-cloudnative/fluid/api/v1alpha1.PodMetadata", "github.com/fluid-cloudnative/fluid/api/v1alpha1.TargetDataset", "github.com/fluid-cloudnative/fluid/api/v1alpha1.TargetPath", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration"},
+	}
+}
+
+func schema_fluid_cloudnative_fluid_api_v1alpha1_DataUnload(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DataUnload is the Schema for the dataunloads API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnloadSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.OperationStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnloadSpec", "github.com/fluid-cloudnative/fluid/api/v1alpha1.OperationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_fluid_cloudnative_fluid_api_v1alpha1_DataUnloadList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DataUnloadList contains a list of DataUnload",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnload"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/fluid-cloudnative/fluid/api/v1alpha1.DataUnload", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_fluid_cloudnative_fluid_api_v1alpha1_DataUnloadSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DataUnloadSpec defines the desired state of DataUnload",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"dataset": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dataset defines the target dataset of the DataUnload",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.TargetDataset"),
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Target defines target paths that needs to be unloaded. If empty, the whole dataset cache will be unloaded.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.TargetPath"),
+									},
+								},
+							},
+						},
+					},
+					"options": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Options specifies the extra dataunload properties for runtime",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"podMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodMetadata defines labels and annotations that will be propagated to DataUnload pods",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.PodMetadata"),
+						},
+					},
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Affinity defines affinity for DataUnload pod",
+							Ref:         ref("k8s.io/api/core/v1.Affinity"),
+						},
+					},
+					"tolerations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Tolerations defines tolerations for DataUnload pod",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
+									},
+								},
+							},
+						},
+					},
+					"nodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeSelector defines node selector for DataUnload pod",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"schedulerName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SchedulerName sets the scheduler to be used for DataUnload pod",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"policy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "including Once, Cron",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"schedule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The schedule in Cron format, only set when policy is cron, see https://en.wikipedia.org/wiki/Cron.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"runAfter": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Specifies that the preceding operation in a workflow",
+							Ref:         ref("github.com/fluid-cloudnative/fluid/api/v1alpha1.OperationRef"),
+						},
+					},
+					"ttlSecondsAfterFinished": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TTLSecondsAfterFinished is the time second to clean up data operations after finished or failed",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources that will be requested by the DataUnload job. <br>",
 							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},

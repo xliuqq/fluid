@@ -38,6 +38,7 @@ spec:
                 name:
                   enum:
                   - DataLoad
+                  - DataUnload
                   - DataBackup
                   - DataMigrate
                   - DataProcess
